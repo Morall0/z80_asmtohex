@@ -1,3 +1,5 @@
+__all__ = ["convert_btoh"]
+
 # Diccionario que permite convertir fácilmente los bloques binarios
 BIN_TO_HEX_MAP = {
     "0000": "0",
@@ -20,7 +22,7 @@ BIN_TO_HEX_MAP = {
 
 
 # Funcion que retorna una lista de bloques de 4 bits del numero original
-def div_bin_digits(number: str) -> str:
+def _div_bin_digits(number: str) -> str:
     binary_blocks_list = []  # Lista de los bloques de 4 bits
     hex_len = len(number) / 4  # Cantidad de digitos hexadecimales
     hex_int_len = int(hex_len)
@@ -41,8 +43,8 @@ def div_bin_digits(number: str) -> str:
 
 
 # Funcióń que convierte un numero binario a hexadecimal
-def bin_to_hex(number: str) -> str:
-    binary_digits = div_bin_digits(number)
+def convert_btoh(number: str) -> str:
+    binary_digits = _div_bin_digits(number)
     hex_digits = [BIN_TO_HEX_MAP[dig] for dig in binary_digits]
     hex_number = "".join(hex_digits)
     return hex_number
