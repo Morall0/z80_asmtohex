@@ -1,4 +1,5 @@
-#  from lut import lut
+from lut import lut
+from dec_to_hex import convert_dtoh
 import re
 
 
@@ -28,10 +29,15 @@ with open("reloc.asm", "r") as archivo:
                 if linea[1][0] != "\n":  # Verif si hay instr después de la eti
                     instruccion = linea[1]
                     instruccion = limpa_instruccion(instruccion)
-                    print(instruccion)
+                    # print(instruccion)
                 # TODO: Manejar las referencias (etis)
             else:
-                linea = limpa_instruccion(linea)
-                print(linea)
+                instruccion = limpa_instruccion(linea)
+
+            # Reemplaza los numeros en decimal, por hexa
+            numero = re.search(r"\b\d+(?!H)\b", instruccion)
+            if numero is not None:
+                instruccion = re.sub(r"\b\d+(?!H)\b",  convert_dtoh(numero.group(0))+"H", instruccion)
+            print(instruccion)
 
         linea = archivo.readline()
