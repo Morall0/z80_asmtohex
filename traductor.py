@@ -85,7 +85,7 @@ with open("reloc.asm", "r") as archivo:
                         print(lut[instruccion+" D"])
 
                     else:
-                        print("LA INSTRUCCION NO EXISTE")
+                        print(f"La instruccion '{instruccion} {op1}' no fue encontrada")
 
                 elif num_operandos == 2:
                     op1 = div_inst[1]
