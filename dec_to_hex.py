@@ -42,22 +42,19 @@ HEX_TO_DEC_MAP = {
     "F": 15
 }
 
+
 # Funcion que convierte de decimal a hexadecimal
-
-
 def convert_dtoh(number):
     number = int(number)
     sign = 1
     neg = 0
 
-    print(number)
     if number < 0:
         sign = -1
         number *= sign
         number -= 1
         neg = 15
 
-    print(number)
     converted = ''
     while (number / 16) != 0:
         converted = DEC_TO_HEX_MAP[neg + sign * (number % 16)] + converted
@@ -75,8 +72,6 @@ def convert_dtoh(number):
 
 
 # Funcion que convierte -numHex a comp_a16(-numHex)
-
-
 def comp_a16_HexNumNeg(number):
     number = re.sub(r"-", "", number)
     length = len(number)
