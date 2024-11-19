@@ -46,6 +46,10 @@ HEX_TO_DEC_MAP = {
 # Funcion que convierte de decimal a hexadecimal
 def convert_dtoh(number):
     number = int(number)
+
+    if number == 0:
+        return str(0)
+
     sign = 1
     neg = 0
 
@@ -60,13 +64,8 @@ def convert_dtoh(number):
         converted = DEC_TO_HEX_MAP[neg + sign * (number % 16)] + converted
         number = number // 16
 
-    if sign:
-        if len(converted) < 2:
-            length = 2
-        else:
-            length = 4
-        while len(converted) < length:
-            converted = 'F' + converted
+    if sign == -1:
+        converted = '-' + converted
 
     return converted
 
