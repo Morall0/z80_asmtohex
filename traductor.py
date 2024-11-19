@@ -75,7 +75,7 @@ with open("reloc.asm", "r") as archivo:
                         if re.match(r"(JP|CALL)", instruccion):
                             print(instruccion+" "+op1)
                             print(lut[instruccion+" NN"])
-                        else:
+                        elif re.match(r"[0-9A-F]{1,2}H", op1):
                             print(instruccion+" "+op1)
                             print(lut[instruccion+" N"])
 
@@ -83,6 +83,9 @@ with open("reloc.asm", "r") as archivo:
                     elif re.match(r"\((IX|IY)\+[0-9AF]{1,2}H\)", op1):
                         print(instruccion+" "+op1)
                         print(lut[instruccion+" D"])
+
+                    else:
+                        print("LA INSTRUCCION NO EXISTE")
 
                 elif num_operandos == 2:
                     op1 = div_inst[1]
