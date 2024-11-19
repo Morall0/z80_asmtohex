@@ -1,7 +1,6 @@
       LD BC, 127
       LD A, 0; r <- 0
       LD (1000H), A 
-      
       ; RELOCALIZACION CON ESPACIOS
       LD B, 0; BC <- n (tamamaño del bloaque)
       LD A, (1001H)
@@ -25,7 +24,7 @@ eti2:
       CP 0
       JP Z, eti1;
       DEC HL
-      
+
       ; ELIMINACION DEL ESPACIO (RECORRIDO) 
       LD A, L
       SUB E
