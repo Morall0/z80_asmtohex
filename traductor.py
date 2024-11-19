@@ -2,6 +2,9 @@ from lut import lut
 from dec_to_hex import convert_dtoh
 import re
 
+TABLA_DE_SIMBOLOS = {}
+CL=0
+
 
 # Funcion que quita los espacios en blanco y cometarios de la instruccion
 def limpa_instruccion(string: str) -> str:
@@ -28,11 +31,18 @@ with open("reloc.asm", "r") as archivo:
             if linea.find(":") != -1:  # Verifica si hay eti
                 linea = re.split(r":", linea)
                 eti = linea[0]
+
+                if eti in TABLA_DE_SIMBOLOS is not None:
+                    TABLA_DE_SIMBOLOS[eti] = CL
+                else:
+                    print("Etiqueta definida múltiplemente")
+                    break
+
                 instruccion = ""
                 if linea[1][0] != "\n":  # Verif si hay instr después de la eti
                     instruccion = linea[1]
                     instruccion = limpa_instruccion(instruccion)
-                # TODO: Manejar las referencias (etis)
+
             else:
                 instruccion = limpa_instruccion(linea)
 
@@ -55,8 +65,13 @@ with open("reloc.asm", "r") as archivo:
                 elif num_operandos == 1:
                     op1 = div_inst[1]
 
+                    # Etiquetas
+                    if re.match(r"", op1):
+                        if op1 in TABLA_DE_SIMBOLOS:
+                            op1 = TABLA_DE_SIMBOLOS
+
                     # Registros
-                    if re.match(r"[A-EHL]$", op1):
+                    elif re.match(r"[A-EHL]$", op1):
                         print(instruccion+" "+op1)
                         print(lut[instruccion+" "+op1])
 
@@ -86,6 +101,7 @@ with open("reloc.asm", "r") as archivo:
 
                     else:
                         print(f"La instruccion '{instruccion} {op1}' no fue encontrada")
+                        break
 
                 elif num_operandos == 2:
                     op1 = div_inst[1]
