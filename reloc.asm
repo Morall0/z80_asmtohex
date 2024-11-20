@@ -1,5 +1,23 @@
-      LD BC, 127
+      LD                    BC ,                127
       LD A, 0; r <- 0
+
+eti4:
+      JR eti4
+      JR NZ, eti4
+      JR Z, eti4
+      JR NC, eti4
+      JR C, eti4
+
+      JP eti4
+      JP NZ, eti4
+      JP Z, eti4
+      JP NC, eti4
+      JP C, eti4
+      JP PO, eti4
+      JP PE, eti4
+      JP P, eti4
+      JP M, eti4
+
       LD (1000H), A 
       ; RELOCALIZACION CON ESPACIOS
       LD B, 0; BC <- n (tamamaño del bloaque)
@@ -22,7 +40,7 @@ eti2:
       CPIR
       LD A, C
       CP 0
-      JP Z, eti1;
+      ;JP Z, eti1;
       DEC HL
 
       ; ELIMINACION DEL ESPACIO (RECORRIDO) 
@@ -38,13 +56,13 @@ eti2:
       INC HL
       LD A, E; Encontrando cantidad de espacios
       SUB L
-      LD H, A; Respaldando cantidad de espacios quitados en H
-      LD A, (1001H); A <- n
+      LD H,A; Respaldando cantidad de espacios quitados en H
+      LD A,(1001H); A <- n
       SUB H; Restandole al tamaño los espacios quitados
-      LD (1001H), A; Cambiando en la memoria el tamaño del bloque
-      LD C, A; BC <- nuevo n
+      LD (1001H),A; Cambiando en la memoria el tamaño del bloque
+      LD C,A; BC <- nuevo n
       JP eti2 
 eti1:
       HALT
 
-eti0: LD A, (1000)
+eti0: LD A,                               (1000)

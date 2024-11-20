@@ -44,7 +44,7 @@ HEX_TO_DEC_MAP = {
 
 
 # Funcion que convierte de decimal a hexadecimal
-def convert_dtoh(number):
+def convert_dtoh(number: str) -> str:
     number = int(number)
 
     if number == 0:
@@ -71,7 +71,7 @@ def convert_dtoh(number):
 
 
 # Funcion que convierte -numHex a comp_a16(-numHex)
-def comp_a16_HexNumNeg(number):
+def comp_a16_HexNumNeg(number: str) -> str:
     number = re.sub(r"-", "", number)
     length = len(number)
 
