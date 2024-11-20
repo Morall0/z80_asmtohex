@@ -31,8 +31,8 @@ def hay_instruccion(linea: str) -> bool:
 
 # Función que retorna un numero HEX rellenado por la izquierda por n ceros
 def rellena_ceros(num: str, tam_bytes: int) -> str:
-    while len(num)-1 < tam_bytes: # Se resta 1 por la 'H'
-        num="0"+num
+    while len(num)-1 < tam_bytes:  # Se resta 1 por la 'H'
+        num = "0" + num
     return num
 
 
@@ -71,13 +71,13 @@ def obtener_clave(instruccion: str):
             valores_op.append(op)
             div_inst[index] = "(NN)"
 
-        #Saltos
+        # Saltos
         elif re.match(r"NZ|Z|NC|C|PO|PE|P|M", op): 
             if re.match(r"JP|CALL|RET", instruccion):
                 extendido = True
             elif re.match(r"JR", instruccion) and re.match(r"NZ|Z|NC|C", op):
                 extendido = False
-            
+
         # N o NN
         elif re.match(r"-?[0-9A-F]{1,4}H$", op):
             if (re.match(r"(JP|CALL)", instruccion) and re.match(r"[0-9A-F]{1,4}H$", op)) or extendido:
@@ -203,5 +203,6 @@ def segunda_pasada():
         linea = archivoASM.readline()
 
     archivoASM.close()
+
 
 primera_pasada()
