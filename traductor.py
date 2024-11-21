@@ -30,9 +30,15 @@ def hay_instruccion(linea: str) -> bool:
 
 
 # Función que retorna un numero HEX rellenado por la izquierda por n ceros
-def rellena_ceros(num: str, tam_bytes: int) -> str:
-    while len(num) - 1 < tam_bytes:  # Se resta 1 por la 'H'
-        num = "0" + num
+def rellena(num: str, tam_bytes: int) -> str:
+    if num.find("-") != -1:
+        num = re.sub(r"-", "", num)
+        char = "F"
+    else:
+        char = "0"
+
+    while len(num) < tam_bytes * 2:  # Se resta 1 por la 'H'
+        num = char + num
     return num
 
 
@@ -70,7 +76,8 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
                 extendido = False
 
         # N o NN
-        elif re.match(r"-?[0-9A-F]{1,4}H$", op):
+        elif re.match(r"-?0*[0-9A-F]{1,4}H$", op):
+            op = re.sub(r"0+(?=[1-9A-F]([0-9A-F]{3}|[0-9A-F]{1}))", "", op)
             if (
                 re.match(r"JP|CALL|RET", instruccion) and op.find("-") == -1
             ) or extendido:
@@ -79,7 +86,9 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
             elif re.match(r"-?[0-9A-F]{1,2}H$", op):
                 valores_op.append(op)
                 if re.match(r"JR", instruccion):
-                    div_inst = "D"
+                    div_inst[index] = "D"
+                elif re.match(r"RST", instruccion):
+                    div_inst[index] = re.sub(r"8H", "08H", op)
                 else:
                     div_inst[index] = "N"
 
@@ -107,7 +116,7 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
     if num_operandos == 2:
         instruccion = instruccion + ", " + div_inst[1]
 
-    return instruccion
+    return instruccion, valores_op
 
 
 # Primera pasada
@@ -129,7 +138,7 @@ def primera_pasada():
                 eti = linea[0]
 
                 if eti not in TABLA_DE_SIMBOLOS:
-                    TABLA_DE_SIMBOLOS[eti] = convert_dtoh(str(CL))
+                    TABLA_DE_SIMBOLOS[eti] = CL
                 else:
                     print("Etiqueta definida múltiplemente")
                     return
@@ -148,7 +157,7 @@ def primera_pasada():
                     numero = convert_dtoh(numero.group(0)) + "H"
                     instruccion = re.sub(r"\b\d+(?!H)\b", numero, instruccion)
 
-                clave = obtener_clave(instruccion, True)
+                clave, _ = obtener_clave(instruccion, True)
 
                 try:
                     # print(TABLA_DE_SIMBOLOS)
@@ -195,11 +204,47 @@ def segunda_pasada():
                     numero = convert_dtoh(numero.group(0)) + "H"
                     instruccion = re.sub(r"\b\d+(?!H)\b", numero, instruccion)
 
-                clave = obtener_clave(instruccion, False)
+                clave, valores_op = obtener_clave(instruccion, False)
 
                 try:
-                    print(rellena_ceros(convert_dtoh(str(CL)), 3), end="")
-                    CL = CL + int(lut[clave][1])
+                    codigo_inst = lut[clave][0]
+                    tamano_inst = lut[clave][1]
+                    for valor in valores_op:
+                        if codigo_inst.find("d") != -1:
+                            if isinstance(valor, str):
+                                valor = convert_dtoh(
+                                    str(
+                                        TABLA_DE_SIMBOLOS[valor] -
+                                        CL - int(tamano_inst)
+                                    )
+                                )
+                            valor = rellena(valor, 1)
+                            valor = " " + valor
+                            codigo_inst = re.sub(r" d ?", valor, codigo_inst)
+                        elif codigo_inst.find("nn") != -1:
+                            if (
+                                re.match(
+                                    r"[0-9A-F]{1,4}H|\([0-9A-F]{1,4}H\)", valor)
+                                is None
+                            ):
+                                valor = convert_dtoh(TABLA_DE_SIMBOLOS[valor])
+                            else:
+                                valor = re.sub(r"\(", "", valor)
+                                valor = re.sub(r"\)", "", valor)
+                                valor = re.sub(r"H", "", valor)
+                            valor = rellena(valor, 2)
+                            valor = valor[2:4] + " " + valor[0:2]
+                            valor = " " + valor
+                            codigo_inst = re.sub(r" nn ?", valor, codigo_inst)
+                        elif codigo_inst.find("n") != -1:
+                            valor = re.sub(r"H", "", valor)
+                            valor = rellena(valor, 1)
+                            valor = " " + valor
+                            codigo_inst = re.sub(r" n ?", valor, codigo_inst)
+
+                    print(rellena(convert_dtoh(str(CL)), 2), end="\t")
+                    print(codigo_inst, end="\t\t")
+                    CL = CL + int(tamano_inst)
                 except KeyError:
                     print(f"La instrucción '{instruccion}' NO EXISTE")
                     return
@@ -208,6 +253,7 @@ def segunda_pasada():
         linea = archivoASM.readline()
 
     archivoASM.close()
+    print(TABLA_DE_SIMBOLOS)
 
 
 primera_pasada()

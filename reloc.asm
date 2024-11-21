@@ -1,3 +1,4 @@
+      LD BC, 00000000001FF0H
       LD                    BC ,                127
       LD A, 0; r <- 0
 
@@ -17,6 +18,9 @@ eti4:
       JP PE, eti4
       JP P, eti4
       JP M, eti4
+
+      RST 8H
+      RST 00020H
 
       LD (1000H), A 
       ; RELOCALIZACION CON ESPACIOS
@@ -40,7 +44,7 @@ eti2:
       CPIR
       LD A, C
       CP 0
-      ;JP Z, eti1;
+      JP Z, eti1;
       DEC HL
 
       ; ELIMINACION DEL ESPACIO (RECORRIDO) 

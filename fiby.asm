@@ -12,7 +12,7 @@ fib:
     JP Z, dr1; Caso base para F(0) = 0
     DEC A; Se decrementa n para calcular F(n-1)
     PUSH AF; Se guarda n-1 en la pila
-    CALL fibi; Se llama a recursión para F(n-1)
+    CALL fib; Se llama a recursión para F(n-1)
     POP AF; Se extrae n-1 de la pila
     DEC A; Se decrementa a n-2 para hacer el cálculo de n-2
     CALL fib; Se llama a recursión para F(n-2)
