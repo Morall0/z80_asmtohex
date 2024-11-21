@@ -5,7 +5,7 @@ import re
 # TODO: CONFIGURAR ARGUMENTOS
 
 TABLA_DE_SIMBOLOS = {}
-#LST=[]
+# LST=[]
 
 
 # Funcion que quita los espacios en blanco y cometarios de la instruccion
@@ -31,12 +31,12 @@ def hay_instruccion(linea: str) -> bool:
 
 # Función que retorna un numero HEX rellenado por la izquierda por n ceros
 def rellena_ceros(num: str, tam_bytes: int) -> str:
-    while len(num)-1 < tam_bytes:  # Se resta 1 por la 'H'
+    while len(num) - 1 < tam_bytes:  # Se resta 1 por la 'H'
         num = "0" + num
     return num
 
 
-def obtener_clave(instruccion: str):
+def obtener_clave(instruccion: str, primeraPasada: bool):
     # Separacion de las instrucciones
     div_inst = instruccion.split(" ")
     instruccion = div_inst[0]
@@ -48,15 +48,6 @@ def obtener_clave(instruccion: str):
     for index, op in enumerate(div_inst):
         op = re.sub(r",", "", op)
         div_inst[index] = op
-
-        # Etiquetas
-        if re.match(r"\S*\W\S*|\b([A-FHL]|\d+\S*|(AF|BC|DE|SP|HL|IX|IY|NZ|Z|NC|C|PO|PE|P|M)|[A-F]+H)\b", op) is None:
-            if re.match(r"JP|CALL|RET", instruccion):
-                op = "0000H"
-                extendido = True
-            elif re.match(r"JR", instruccion):
-                op = "00H"
-                extendido = False
 
         # Registros
         # (HL) | (IX) | (IY) | (SP)
@@ -72,7 +63,7 @@ def obtener_clave(instruccion: str):
             div_inst[index] = "(NN)"
 
         # Saltos
-        elif re.match(r"NZ|Z|NC|C|PO|PE|P|M", op): 
+        elif re.match(r"NZ|Z|NC|C|PO|PE|P|M", op):
             if re.match(r"JP|CALL|RET", instruccion):
                 extendido = True
             elif re.match(r"JR", instruccion) and re.match(r"NZ|Z|NC|C", op):
@@ -80,14 +71,16 @@ def obtener_clave(instruccion: str):
 
         # N o NN
         elif re.match(r"-?[0-9A-F]{1,4}H$", op):
-            if (re.match(r"(JP|CALL)", instruccion) and re.match(r"[0-9A-F]{1,4}H$", op)) or extendido:
+            if (
+                re.match(r"JP|CALL|RET", instruccion) and op.find("-") == -1
+            ) or extendido:
                 valores_op.append(op)
                 div_inst[index] = "NN"
             elif re.match(r"-?[0-9A-F]{1,2}H$", op):
+                valores_op.append(op)
                 if re.match(r"JR", instruccion):
-                    div_inst[index] = "D"
+                    div_inst = "D"
                 else:
-                    valores_op.append(op)
                     div_inst[index] = "N"
 
         # (IX+D) | (IY+D)
@@ -97,6 +90,17 @@ def obtener_clave(instruccion: str):
                 div_inst[index] = "(IX+D)"
             else:
                 div_inst[index] = "(IY+D)"
+
+        # Etiquetas
+        elif re.match(r"\S*\W+\S*|\b\d+\S*\b", op) is None:
+            if op in TABLA_DE_SIMBOLOS:
+                valores_op.append(op)
+
+            if op in TABLA_DE_SIMBOLOS or primeraPasada:
+                if re.match(r"JP|CALL|RET", instruccion):
+                    div_inst[index] = "NN"
+                elif re.match(r"JR", instruccion):
+                    div_inst[index] = "D"
 
     if num_operandos >= 1:
         instruccion = instruccion + " " + div_inst[0]
@@ -109,16 +113,16 @@ def obtener_clave(instruccion: str):
 # Primera pasada
 def primera_pasada():
     try:
-        archivoASM = open("o3.asm", "r")
+        archivoASM = open("fiby.asm", "r")
     except FileNotFoundError:
-        print("El archivo [ARCHIVO] no fue encontrado")  # TODO: PONER EL NOMBRE DEL ARCHIVO
+        # TODO: PONER EL NOMBRE DEL ARCHIVO
+        print("El archivo [ARCHIVO] no fue encontrado")
         return
 
     linea = archivoASM.readline()
 
     CL = 0
     while linea:
-
         if hay_instruccion(linea):  # Verif no linea vacía o coment
             if linea.find(":") != -1:  # Verifica si hay eti
                 linea = re.split(r":", linea)
@@ -127,8 +131,8 @@ def primera_pasada():
                 if eti not in TABLA_DE_SIMBOLOS:
                     TABLA_DE_SIMBOLOS[eti] = convert_dtoh(str(CL))
                 else:
-                    print("Etiqueta definida múltiplemente") 
-                    return 
+                    print("Etiqueta definida múltiplemente")
+                    return
                 instruccion = ""
                 if linea[1][0] != "\n":  # Verif si hay instr después de la eti
                     instruccion = linea[1]
@@ -144,7 +148,7 @@ def primera_pasada():
                     numero = convert_dtoh(numero.group(0)) + "H"
                     instruccion = re.sub(r"\b\d+(?!H)\b", numero, instruccion)
 
-                clave = obtener_clave(instruccion)
+                clave = obtener_clave(instruccion, True)
 
                 try:
                     # print(TABLA_DE_SIMBOLOS)
@@ -163,20 +167,21 @@ def primera_pasada():
 # Segunda pasada
 def segunda_pasada():
     try:
-        archivoASM = open("o3.asm", "r")
+        archivoASM = open("fiby.asm", "r")
     except FileNotFoundError:
-        print("El archivo [ARCHIVO] no fue encontrado")  # TODO: PONER EL NOMBRE DEL ARCHIVO
+        # TODO: PONER EL NOMBRE DEL ARCHIVO
+        print("El archivo [ARCHIVO] no fue encontrado")
         return
 
     linea = archivoASM.readline()
 
     CL = 0
     while linea:
-
         if hay_instruccion(linea):  # Verif no linea vacía o coment
             if linea.find(":") != -1:  # Verifica si hay eti
                 instruccion = ""
-                if re.split(r":", linea)[1][0] != "\n":  # Verif si hay instr después de la eti
+                # Verif si hay instr después de la eti
+                if re.split(r":", linea)[1][0] != "\n":
                     instruccion = re.split(r":", linea)[1]
                     instruccion = limpa_instruccion(instruccion)
 
@@ -190,16 +195,16 @@ def segunda_pasada():
                     numero = convert_dtoh(numero.group(0)) + "H"
                     instruccion = re.sub(r"\b\d+(?!H)\b", numero, instruccion)
 
-                clave = obtener_clave(instruccion)
+                clave = obtener_clave(instruccion, False)
 
                 try:
-                    print(rellena_ceros(convert_dtoh(str(CL)), 4), end="\t\t")
+                    print(rellena_ceros(convert_dtoh(str(CL)), 3), end="")
                     CL = CL + int(lut[clave][1])
                 except KeyError:
                     print(f"La instrucción '{instruccion}' NO EXISTE")
                     return
 
-        print(linea, end="")
+        print("\t\t" + linea, end="")
         linea = archivoASM.readline()
 
     archivoASM.close()
