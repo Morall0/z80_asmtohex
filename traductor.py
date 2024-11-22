@@ -94,11 +94,13 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
 
         # (IX+D) | (IY+D)
         elif re.match(r"\((IX|IY)(\+|\-)[0-9A-F]{1,2}H\)$", op):
-            valores_op.append(op)
             if op.find("IX") != -1:
                 div_inst[index] = "(IX+D)"
             else:
                 div_inst[index] = "(IY+D)"
+            op = re.sub(r"\((IX|IY)(\+|\-)", "", op)
+            op = re.sub(r"\)", "", op)
+            valores_op.append(op)
 
         # Etiquetas
         elif re.match(r"\S*\W+\S*|\b\d+\S*\b", op) is None:
@@ -135,7 +137,7 @@ def primera_pasada():
         if hay_instruccion(linea):  # Verif no linea vacía o coment
             if linea.find(":") != -1:  # Verifica si hay eti
                 linea = re.split(r":", linea)
-                eti = linea[0]
+                eti = limpa_instruccion(linea[0])
 
                 if eti not in TABLA_DE_SIMBOLOS:
                     TABLA_DE_SIMBOLOS[eti] = CL
@@ -206,18 +208,26 @@ def segunda_pasada():
 
                 clave, valores_op = obtener_clave(instruccion, False)
 
+                # print(clave)
+                # print(valores_op)
                 try:
                     codigo_inst = lut[clave][0]
                     tamano_inst = lut[clave][1]
                     for valor in valores_op:
                         if codigo_inst.find("d") != -1:
-                            if isinstance(valor, str):
+                            if (
+                                re.match(
+                                    r"[0-9A-F]{1,2}H", valor)
+                                is None
+                            ):
                                 valor = convert_dtoh(
                                     str(
                                         TABLA_DE_SIMBOLOS[valor] -
                                         CL - int(tamano_inst)
                                     )
                                 )
+                            else:
+                                valor = re.sub(r"H", "", valor)
                             valor = rellena(valor, 1)
                             valor = " " + valor
                             codigo_inst = re.sub(r" d ?", valor, codigo_inst)
@@ -253,7 +263,6 @@ def segunda_pasada():
         linea = archivoASM.readline()
 
     archivoASM.close()
-    print(TABLA_DE_SIMBOLOS)
 
 
 primera_pasada()
