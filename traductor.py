@@ -1,15 +1,13 @@
 from lut import lut
 from dec_to_hex import convert_dtoh
 import re
-
-# TODO: CONFIGURAR ARGUMENTOS
+from args_config import crear_args_parser
 
 TABLA_DE_SIMBOLOS = {}
-# LST=[]
 
 
 # Funcion que quita los espacios en blanco y cometarios de la instruccion
-def limpa_instruccion(string: str) -> str:
+def limpia_instruccion(string: str) -> str:
     string = re.sub(r"^\s+", "", string)
     string = re.sub(r"\s+$", "", string)
     string = re.sub(r";.*", "", string)
@@ -122,14 +120,7 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
 
 
 # Primera pasada
-def primera_pasada():
-    try:
-        archivoASM = open("fiby.asm", "r")
-    except FileNotFoundError:
-        # TODO: PONER EL NOMBRE DEL ARCHIVO
-        print("El archivo [ARCHIVO] no fue encontrado")
-        return
-
+def primera_pasada(archivoASM, nombre_lst):
     linea = archivoASM.readline()
 
     CL = 0
@@ -137,7 +128,7 @@ def primera_pasada():
         if hay_instruccion(linea):  # Verif no linea vacía o coment
             if linea.find(":") != -1:  # Verifica si hay eti
                 linea = re.split(r":", linea)
-                eti = limpa_instruccion(linea[0])
+                eti = limpia_instruccion(linea[0])
 
                 if eti not in TABLA_DE_SIMBOLOS:
                     TABLA_DE_SIMBOLOS[eti] = CL
@@ -147,10 +138,10 @@ def primera_pasada():
                 instruccion = ""
                 if linea[1][0] != "\n":  # Verif si hay instr después de la eti
                     instruccion = linea[1]
-                    instruccion = limpa_instruccion(instruccion)
+                    instruccion = limpia_instruccion(instruccion)
 
             else:
-                instruccion = limpa_instruccion(linea)
+                instruccion = limpia_instruccion(linea)
 
             if instruccion != "":
                 # Reemplaza los numeros en decimal, por hexa
@@ -170,21 +161,14 @@ def primera_pasada():
                     return
 
         linea = archivoASM.readline()
-
-    archivoASM.close()
-    segunda_pasada()
+    archivoASM.seek(0)
+    segunda_pasada(archivoASM, nombre_lst)
 
 
 # Segunda pasada
-def segunda_pasada():
-    try:
-        archivoASM = open("fiby.asm", "r")
-    except FileNotFoundError:
-        # TODO: PONER EL NOMBRE DEL ARCHIVO
-        print("El archivo [ARCHIVO] no fue encontrado")
-        return
-
+def segunda_pasada(archivoASM, nombre_lst):
     linea = archivoASM.readline()
+    archivoLST = open(nombre_lst, "w")
 
     CL = 0
     while linea:
@@ -194,10 +178,12 @@ def segunda_pasada():
                 # Verif si hay instr después de la eti
                 if re.split(r":", linea)[1][0] != "\n":
                     instruccion = re.split(r":", linea)[1]
-                    instruccion = limpa_instruccion(instruccion)
+                    instruccion = limpia_instruccion(instruccion)
+                else:
+                    linea = "\t\t\t\t" + linea
 
             else:
-                instruccion = limpa_instruccion(linea)
+                instruccion = limpia_instruccion(linea)
 
             if instruccion != "":
                 # Reemplaza los numeros en decimal, por hexa
@@ -206,63 +192,84 @@ def segunda_pasada():
                     numero = convert_dtoh(numero.group(0)) + "H"
                     instruccion = re.sub(r"\b\d+(?!H)\b", numero, instruccion)
 
+                # TODO: Reemplazar los numeros HEXA negativos por su complemento
                 clave, valores_op = obtener_clave(instruccion, False)
 
-                # print(clave)
-                # print(valores_op)
                 try:
                     codigo_inst = lut[clave][0]
                     tamano_inst = lut[clave][1]
-                    for valor in valores_op:
-                        if codigo_inst.find("d") != -1:
-                            if (
-                                re.match(
-                                    r"[0-9A-F]{1,2}H", valor)
-                                is None
-                            ):
-                                valor = convert_dtoh(
-                                    str(
-                                        TABLA_DE_SIMBOLOS[valor] -
-                                        CL - int(tamano_inst)
-                                    )
-                                )
-                            else:
-                                valor = re.sub(r"H", "", valor)
-                            valor = rellena(valor, 1)
-                            valor = " " + valor
-                            codigo_inst = re.sub(r" d ?", valor, codigo_inst)
-                        elif codigo_inst.find("nn") != -1:
-                            if (
-                                re.match(
-                                    r"[0-9A-F]{1,4}H|\([0-9A-F]{1,4}H\)", valor)
-                                is None
-                            ):
-                                valor = convert_dtoh(TABLA_DE_SIMBOLOS[valor])
-                            else:
-                                valor = re.sub(r"\(", "", valor)
-                                valor = re.sub(r"\)", "", valor)
-                                valor = re.sub(r"H", "", valor)
-                            valor = rellena(valor, 2)
-                            valor = valor[2:4] + " " + valor[0:2]
-                            valor = " " + valor
-                            codigo_inst = re.sub(r" nn ?", valor, codigo_inst)
-                        elif codigo_inst.find("n") != -1:
-                            valor = re.sub(r"H", "", valor)
-                            valor = rellena(valor, 1)
-                            valor = " " + valor
-                            codigo_inst = re.sub(r" n ?", valor, codigo_inst)
-
-                    print(rellena(convert_dtoh(str(CL)), 2), end="\t")
-                    print(codigo_inst, end="\t\t")
-                    CL = CL + int(tamano_inst)
                 except KeyError:
                     print(f"La instrucción '{instruccion}' NO EXISTE")
                     return
+                for valor in valores_op:
+                    if codigo_inst.find("d") != -1:
+                        if (
+                            re.match(
+                                r"[0-9A-F]{1,2}H", valor)
+                            is None
+                        ):
+                            valor = convert_dtoh(
+                                str(
+                                    TABLA_DE_SIMBOLOS[valor] -
+                                    CL - int(tamano_inst)
+                                )
+                            )
+                        else:
+                            valor = re.sub(r"H", "", valor)
+                        valor = rellena(valor, 1)
+                        valor = " " + valor
+                        codigo_inst = re.sub(r" d ?", valor, codigo_inst)
+                    elif codigo_inst.find("nn") != -1:
+                        if (
+                            re.match(
+                                r"[0-9A-F]{1,4}H|\([0-9A-F]{1,4}H\)", valor)
+                            is None
+                        ):
+                            valor = convert_dtoh(TABLA_DE_SIMBOLOS[valor])
+                        else:
+                            valor = re.sub(r"\(", "", valor)
+                            valor = re.sub(r"\)", "", valor)
+                            valor = re.sub(r"H", "", valor)
+                        valor = rellena(valor, 2)
+                        valor = valor[2:4] + " " + valor[0:2]
+                        valor = " " + valor
+                        codigo_inst = re.sub(r" nn ?", valor, codigo_inst)
+                    elif codigo_inst.find("n") != -1:
+                        valor = re.sub(r"H", "", valor)
+                        valor = rellena(valor, 1)
+                        valor = " " + valor
+                        codigo_inst = re.sub(r" n ?", valor, codigo_inst)
 
-        print("\t\t" + linea, end="")
+                CL_HEX = rellena(convert_dtoh(str(CL)), 2)
+                archivoLST.write(CL_HEX+"\t"+f"{codigo_inst:<8}")
+                CL = CL + int(tamano_inst)
+        else:
+            archivoLST.write("\t\t\t\t")
+
+        archivoLST.write("\t\t"+linea)
         linea = archivoASM.readline()
 
+
+def traduce():
+    # Inicializando el parser de los argumentos
+    parser = crear_args_parser()
+
+    # Variable que contiene los argumentos dados en terminal
+    args = parser.parse_args()
+    if args.HEX is not None:
+        nombre_lst = args.HEX
+    else:
+        nombre_lst = re.sub("asm", "lst", args.nombre_asm)
+
+    # Validando la existencia del archivo
+    try:
+        archivoASM = open(args.nombre_asm, "r")
+    except FileNotFoundError:
+        print(f"El archivo {args.nombre_asm} no fue encontrado")
+        return
+
+    primera_pasada(archivoASM, nombre_lst)
     archivoASM.close()
 
 
-primera_pasada()
+traduce()
