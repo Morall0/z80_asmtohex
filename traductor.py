@@ -6,6 +6,14 @@ from args_config import crear_args_parser
 TABLA_DE_SIMBOLOS = {}
 
 
+#Funcion Checksum en hexa para codigo hex
+def checksum(linea_hex):
+    bytes_hex = [int(linea_hex[i:i+2], 16) for i in range(0, len(linea_hex), 2)]
+    suma = sum(bytes_hex)
+    checksum = (256 - (suma % 256)) % 256
+    return f"{checksum:02X}"
+
+
 # Funcion que quita los espacios en blanco y cometarios de la instruccion
 def limpia_instruccion(string: str) -> str:
     string = re.sub(r"^\s+", "", string)
@@ -120,7 +128,7 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
 
 
 # Primera pasada
-def primera_pasada(archivoASM, nombre_lst):
+def primera_pasada(archivoASM, nombre_lst, nombre_hex):
     linea = archivoASM.readline()
 
     CL = 0
@@ -162,14 +170,14 @@ def primera_pasada(archivoASM, nombre_lst):
 
         linea = archivoASM.readline()
     archivoASM.seek(0)
-    segunda_pasada(archivoASM, nombre_lst)
+    segunda_pasada(archivoASM, nombre_lst, nombre_hex)
 
 
 # Segunda pasada
-def segunda_pasada(archivoASM, nombre_lst):
+def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
     linea = archivoASM.readline()
     archivoLST = open(nombre_lst, "w")
-
+    archivoHEX = open(nombre_hex, "w")
     CL = 0
     while linea:
         if hay_instruccion(linea):  # Verif no linea vacía o coment
@@ -242,12 +250,19 @@ def segunda_pasada(archivoASM, nombre_lst):
 
                 CL_HEX = rellena(convert_dtoh(str(CL)), 2)
                 archivoLST.write(CL_HEX+"\t"+f"{codigo_inst:<8}")
+
+                codigoHex=re.sub(r'\s+', '', codigo_inst)
+                numBytes=rellena(convert_dtoh(int(tamano_inst)),1)
+                lineaHex=numBytes+CL_HEX+'00'+codigoHex
+                archivoHEX.write(':'+lineaHex+checksum(lineaHex)+'\n')
+
                 CL = CL + int(tamano_inst)
         else:
             archivoLST.write("\t\t\t\t")
 
         archivoLST.write("\t\t"+linea)
         linea = archivoASM.readline()
+    archivoHEX.write(':00000001FF')
 
 
 def traduce():
@@ -258,8 +273,10 @@ def traduce():
     args = parser.parse_args()
     if args.HEX is not None:
         nombre_lst = args.HEX
+        nombre_hex = args.HEX
     else:
         nombre_lst = re.sub("asm", "lst", args.nombre_asm)
+        nombre_hex = re.sub("asm", "hex", args.nombre_asm)
 
     # Validando la existencia del archivo
     try:
@@ -268,7 +285,7 @@ def traduce():
         print(f"El archivo {args.nombre_asm} no fue encontrado")
         return
 
-    primera_pasada(archivoASM, nombre_lst)
+    primera_pasada(archivoASM, nombre_lst, nombre_hex)
     archivoASM.close()
 
 
