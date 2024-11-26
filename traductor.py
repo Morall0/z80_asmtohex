@@ -82,7 +82,7 @@ def rellena(num: str, tam_bytes: int) -> str:
 
 
 # Verifica que el valor de un número se encuentre dentro de los rangos válidos
-def verif_num(num, n_bytes, con_signo = False):
+def verif_num(num, n_bytes, con_signo=False):
     num = re.sub(r"H", "", num)
     if num.find("-") != -1:
         num = re.sub(r"-", "", num)
@@ -92,7 +92,7 @@ def verif_num(num, n_bytes, con_signo = False):
     else:
         aux = 1
         num = int(num, 16)
-        if con_signo: 
+        if con_signo:
             aux *= 2
 
         if num > (16**(2*n_bytes) / aux) - 1:
@@ -171,7 +171,6 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
         elif re.match(r"\S*\W+\S*|\b\d+\S*\b", op) is None:
             if op in TABLA_DE_SIMBOLOS:
                 verif_num(convert_dtoh(TABLA_DE_SIMBOLOS[op])+"H", 2)
-                #verif_num(TABLA_DE_SIMBOLOS[op], 2)
                 valores_op.append(op)
 
             if op in TABLA_DE_SIMBOLOS or primeraPasada:
@@ -379,4 +378,4 @@ def traduce():
     archivoASM.close()
 
 
-traduce() # Traduce :D
+traduce()  # Traduce :D
