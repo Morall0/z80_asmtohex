@@ -14,6 +14,39 @@ def checksum(linea_hex):
     return f"{checksum:02X}"
 
 
+# Devuelve una lista con elementos de 16 bytes de las instrucciones traducidas
+def split_hex_16Bytes(linea_hex):
+    lista_hex = []
+    for i in range(0, len(linea_hex), 32):
+        lista_hex.append(linea_hex[i:i+32])
+
+    index_ultimo_elem = len(lista_hex) - 1
+    tam_ultimo_elem = len(lista_hex[index_ultimo_elem])
+
+    if tam_ultimo_elem < 32:
+        lista_hex[index_ultimo_elem] = rellena(lista_hex[index_ultimo_elem], 16)
+
+    return lista_hex
+
+
+# Funcion que genera el archivo.hex con base a la traducción
+def genera_hex(linea_hex, nombre_hex):
+    archivoHEX = open(nombre_hex, "w")
+    lista_hex = split_hex_16Bytes(linea_hex)
+    CL = 0  # TODO: manejar el CL para cuando no inicie en 0
+
+    # For que genera el renglon hex de cada 16 bytes de datos
+    for datos_hex in lista_hex:
+        CL_HEX = rellena(convert_dtoh(CL), 2)
+        renglon = "10"+CL_HEX+"00"+datos_hex
+        CL += 16
+        archivoHEX.write(":"+renglon+checksum(renglon)+'\n')
+
+    archivoHEX.write(':00000001FF')  # Escribe el final del archivo
+    archivoHEX.close()
+    return
+
+
 # Funcion que quita los espacios en blanco y cometarios de la instruccion
 def limpia_instruccion(string: str) -> str:
     string = re.sub(r"^\s+", "", string)
@@ -131,7 +164,7 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
 def primera_pasada(archivoASM, nombre_lst, nombre_hex):
     linea = archivoASM.readline()
 
-    CL = 0
+    CL = 0  # Manejar el CL para cuando no inicie en 0
     while linea:
         if hay_instruccion(linea):  # Verif no linea vacía o coment
             if linea.find(":") != -1:  # Verifica si hay eti
@@ -161,8 +194,6 @@ def primera_pasada(archivoASM, nombre_lst, nombre_hex):
                 clave, _ = obtener_clave(instruccion, True)
 
                 try:
-                    # print(TABLA_DE_SIMBOLOS)
-                    # print("00"+convert_dtoh(str(CL))+"\t\t"+clave)
                     CL = CL + int(lut[clave][1])
                 except KeyError:
                     print(f"La instrucción '{instruccion}' NO EXISTE")
@@ -177,8 +208,8 @@ def primera_pasada(archivoASM, nombre_lst, nombre_hex):
 def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
     linea = archivoASM.readline()
     archivoLST = open(nombre_lst, "w")
-    archivoHEX = open(nombre_hex, "w")
-    CL = 0
+    CL = 0  # TODO: manejar el CL para cuando no inicie en 0
+    linea_hex = ""
     while linea:
         if hay_instruccion(linea):  # Verif no linea vacía o coment
             if linea.find(":") != -1:  # Verifica si hay eti
@@ -248,13 +279,12 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
                         valor = " " + valor
                         codigo_inst = re.sub(r" n ?", valor, codigo_inst)
 
+                codigo_inst = re.sub(r'\s+', '', codigo_inst)  # Se eliminan espacios en blanco
                 CL_HEX = rellena(convert_dtoh(str(CL)), 2)
+
                 archivoLST.write(CL_HEX+"\t"+f"{codigo_inst:<8}")
 
-                codigoHex=re.sub(r'\s+', '', codigo_inst)
-                numBytes=rellena(convert_dtoh(int(tamano_inst)),1)
-                lineaHex=numBytes+CL_HEX+'00'+codigoHex
-                archivoHEX.write(':'+lineaHex+checksum(lineaHex)+'\n')
+                linea_hex += codigo_inst  # Concatena HEX de las instrucciones
 
                 CL = CL + int(tamano_inst)
         else:
@@ -262,7 +292,9 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
 
         archivoLST.write("\t\t"+linea)
         linea = archivoASM.readline()
-    archivoHEX.write(':00000001FF')
+
+    archivoLST.close()
+    genera_hex(linea_hex, nombre_hex)
 
 
 def traduce():
