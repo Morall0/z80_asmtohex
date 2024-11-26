@@ -1,5 +1,5 @@
 from lut import lut
-from dec_to_hex import convert_dtoh
+from dec_to_hex import convert_dtoh, comp_a16_HexNumNeg
 import re
 from args_config import crear_args_parser
 
@@ -81,6 +81,25 @@ def rellena(num: str, tam_bytes: int) -> str:
     return num
 
 
+# Verifica que el valor de un número se encuentre dentro de los rangos válidos
+def verif_num(num, n_bytes, con_signo = False):
+    num = re.sub(r"H", "", num)
+    if num.find("-") != -1:
+        num = re.sub(r"-", "", num)
+        num = int(num, 16)
+        if num > (16**(2*n_bytes)) / 2:
+            raise ValueError(f"Valor fuera del rango permitido (<-{(16**(2*n_bytes)) / 2})")
+    else:
+        aux = 1
+        num = int(num, 16)
+        if con_signo: 
+            aux *= 2
+
+        if num > (16**(2*n_bytes) / aux) - 1:
+            raise ValueError(f"Valor fuera del rango permitido (>{(16**(2*n_bytes) / aux) - 1})")
+
+
+# Retorna la clave de la inst. para acceder a su codigo y tamaño en la lut
 def obtener_clave(instruccion: str, primeraPasada: bool):
     # Separacion de las instrucciones
     div_inst = instruccion.split(" ")
@@ -94,7 +113,7 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
         op = re.sub(r",", "", op)
         div_inst[index] = op
 
-        # DIRECTIVAS
+        # DIRECTIVA ORG
         if re.match(r"ORG", instruccion):
             div_inst[index] = "NN"
 
@@ -125,14 +144,17 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
                 re.match(r"JP|CALL|RET", instruccion) and op.find("-") == -1
             ) or extendido:
                 valores_op.append(op)
+                verif_num(op, 2)
                 div_inst[index] = "NN"
             elif re.match(r"-?[0-9A-F]{1,2}H$", op):
                 valores_op.append(op)
                 if re.match(r"JR", instruccion):
+                    verif_num(op, 1, True)
                     div_inst[index] = "D"
                 elif re.match(r"RST", instruccion):
                     div_inst[index] = re.sub(r"8H", "08H", op)
                 else:
+                    verif_num(op, 1)
                     div_inst[index] = "N"
 
         # (IX+D) | (IY+D)
@@ -148,6 +170,8 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
         # Etiquetas
         elif re.match(r"\S*\W+\S*|\b\d+\S*\b", op) is None:
             if op in TABLA_DE_SIMBOLOS:
+                verif_num(convert_dtoh(TABLA_DE_SIMBOLOS[op])+"H", 2)
+                #verif_num(TABLA_DE_SIMBOLOS[op], 2)
                 valores_op.append(op)
 
             if op in TABLA_DE_SIMBOLOS or primeraPasada:
@@ -164,7 +188,7 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
     return instruccion, valores_op
 
 
-# Primera pasada
+# Primera pasada (llena la tabla de simbolos)
 def primera_pasada(archivoASM, nombre_lst, nombre_hex):
     linea = archivoASM.readline()
 
@@ -179,7 +203,7 @@ def primera_pasada(archivoASM, nombre_lst, nombre_hex):
                 if eti not in TABLA_DE_SIMBOLOS:
                     TABLA_DE_SIMBOLOS[eti] = CL
                 else:
-                    print("Etiqueta definida múltiplemente")
+                    print("ERROR: Etiqueta definida múltiplemente")
                     return
                 instruccion = ""
                 if linea[1][0] != "\n":  # Verif si hay instr después de la eti
@@ -191,34 +215,43 @@ def primera_pasada(archivoASM, nombre_lst, nombre_hex):
 
             if instruccion != "":
                 # Reemplaza los numeros en decimal, por hexa
-                numero = re.search(r"\b\d+(?!H)\b", instruccion)
-                if numero is not None:
-                    numero = convert_dtoh(numero.group(0)) + "H"
-                    instruccion = re.sub(r"\b\d+(?!H)\b", numero, instruccion)
+                numero_dec = re.search(r"\b\d+(?!H)\b", instruccion)
+                if numero_dec is not None:
+                    numero_hex = convert_dtoh(numero_dec.group(0)) + "H"
+                    instruccion = re.sub(r"\b\d+(?!H)\b", numero_hex, instruccion)
 
-                clave, _ = obtener_clave(instruccion, True)
+                try:
+                    clave, _ = obtener_clave(instruccion, True)
+                except ValueError as e:
+                    print(f"ERROR: {e}")
+                    return
 
                 if clave == "ORG NN":
-                    ORG = re.search(r"\b[0-9AF]{1,4}(?=H)", instruccion).group()
+                    ORG = re.search(r"\b[0-9A-F]{1,4}(?=H)", instruccion).group()
                     CL = int(ORG, 16)
                     ORG = CL  # Obteniendo el ORG en decimal
 
                 try:
                     CL = CL + int(lut[clave][1])
                 except KeyError:
-                    print(f"La instrucción '{instruccion}' NO EXISTE")
+                    print(f"ERROR: La instrucción '{instruccion}' NO EXISTE")
                     return
 
         linea = archivoASM.readline()
     archivoASM.seek(0)
-    segunda_pasada(archivoASM, nombre_lst, nombre_hex, ORG)
+    try:
+        segunda_pasada(archivoASM, nombre_lst, nombre_hex)
+    except ValueError as e:
+        print(f"ERROR: {e}")
+        return
 
 
-# Segunda pasada
-def segunda_pasada(archivoASM, nombre_lst, nombre_hex, ORG):
+# Segunda pasada (genera el lst y el hex)
+def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
     linea = archivoASM.readline()
     archivoLST = open(nombre_lst, "w")
-    CL = ORG
+    CL = 0
+    ORG = 0
     linea_hex = ""
     while linea:
         if hay_instruccion(linea):  # Verif no linea vacía o coment
@@ -236,25 +269,35 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex, ORG):
 
             if instruccion != "":
                 # Reemplaza los numeros en decimal, por hexa
-                numero = re.search(r"\b\d+(?!H)\b", instruccion)
-                if numero is not None:
-                    numero = convert_dtoh(numero.group(0)) + "H"
-                    instruccion = re.sub(r"\b\d+(?!H)\b", numero, instruccion)
+                numero_dec = re.search(r"\b\d+(?!H)\b", instruccion)
+                if numero_dec is not None:
+                    numero_hex = convert_dtoh(numero_dec.group(0)) + "H"
+                    instruccion = re.sub(r"\b\d+(?!H)\b", numero_hex, instruccion)
 
-                # TODO: Reemplazar los numeros HEXA negativos por su complemento
                 clave, valores_op = obtener_clave(instruccion, False)
+
+                if clave == "ORG NN":
+                    ORG = re.search(r"\b[0-9A-F]{1,4}(?=H)", instruccion).group()
+                    CL = int(ORG, 16)
+                    ORG = CL  # Obteniendo el ORG en decimal
+
+                # Reemplaza los numeros HEXA negativos por su complemento
+                numero_neg = re.search(r"-[0-9A-F]{1,4}(?=H)", instruccion)
+                if numero_neg is not None:
+                    numero_hex = comp_a16_HexNumNeg(numero_neg.group(0))
+                    instruccion = re.sub(r"-[0-9A-F]{1,4}(?=H)", numero_hex, instruccion)
 
                 try:
                     codigo_inst = lut[clave][0]
                     tamano_inst = lut[clave][1]
                 except KeyError:
-                    print(f"La instrucción '{instruccion}' NO EXISTE")
+                    print(f"ERROR: La instrucción '{instruccion}' NO EXISTE")
                     return
                 for valor in valores_op:
                     if codigo_inst.find("d") != -1:
                         if (
                             re.match(
-                                r"[0-9A-F]{1,2}H", valor)
+                                r"-?[0-9A-F]{1,2}H", valor)
                             is None
                         ):
                             valor = convert_dtoh(
@@ -263,6 +306,11 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex, ORG):
                                     CL - int(tamano_inst)
                                 )
                             )
+                            if valor.find("-") != -1:
+                                complemento = comp_a16_HexNumNeg(valor)
+                                verif_num(complemento, 1, True)
+                            else:
+                                verif_num(valor, 1, True)
                         else:
                             valor = re.sub(r"H", "", valor)
                         valor = rellena(valor, 1)
@@ -271,7 +319,7 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex, ORG):
                     elif codigo_inst.find("nn") != -1:
                         if (
                             re.match(
-                                r"[0-9A-F]{1,4}H|\([0-9A-F]{1,4}H\)", valor)
+                                r"-?[0-9A-F]{1,4}H|\([0-9A-F]{1,4}H\)", valor)
                             is None
                         ):
                             valor = convert_dtoh(TABLA_DE_SIMBOLOS[valor])
@@ -290,7 +338,6 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex, ORG):
                         codigo_inst = re.sub(r" n ?", valor, codigo_inst)
 
                 codigo_inst = re.sub(r'\s+', '', codigo_inst)  # Se eliminan espacios en blanco
-                # print(codigo_inst)
                 CL_HEX = rellena(convert_dtoh(str(CL)), 2)
 
                 archivoLST.write(CL_HEX+"\t"+f"{codigo_inst:<8}")
@@ -325,11 +372,11 @@ def traduce():
     try:
         archivoASM = open(args.nombre_asm, "r")
     except FileNotFoundError:
-        print(f"El archivo {args.nombre_asm} no fue encontrado")
+        print(f"ERROR: El archivo {args.nombre_asm} no fue encontrado")
         return
 
     primera_pasada(archivoASM, nombre_lst, nombre_hex)
     archivoASM.close()
 
 
-traduce()
+traduce() # Traduce :D
