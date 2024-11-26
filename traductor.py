@@ -8,7 +8,8 @@ TABLA_DE_SIMBOLOS = {}
 
 # Funcion que realiza el checksum de un renglon hex
 def checksum(linea_hex):
-    bytes_hex = [int(linea_hex[i:i+2], 16) for i in range(0, len(linea_hex), 2)]
+    bytes_hex = [int(linea_hex[i: i + 2], 16)
+                 for i in range(0, len(linea_hex), 2)]
     suma = sum(bytes_hex)
     checksum = (256 - (suma % 256)) % 256
     return f"{checksum:02X}"
@@ -18,13 +19,7 @@ def checksum(linea_hex):
 def split_hex_16Bytes(linea_hex):
     lista_hex = []
     for i in range(0, len(linea_hex), 32):
-        lista_hex.append(linea_hex[i:i+32])
-
-    index_ultimo_elem = len(lista_hex) - 1
-    tam_ultimo_elem = len(lista_hex[index_ultimo_elem])
-
-    if tam_ultimo_elem < 32:
-        lista_hex[index_ultimo_elem] = rellena(lista_hex[index_ultimo_elem], 16)
+        lista_hex.append(linea_hex[i: i + 32])
 
     return lista_hex
 
@@ -38,11 +33,12 @@ def genera_hex(linea_hex, nombre_hex, ORG):
     # For que genera el renglon hex de cada 16 bytes de datos
     for datos_hex in lista_hex:
         CL_HEX = rellena(convert_dtoh(CL), 2)
-        renglon = "10"+CL_HEX+"00"+datos_hex
-        CL += 16
-        archivoHEX.write(":"+renglon+checksum(renglon)+'\n')
+        CL_CODIGOS_HEX = CL_HEX + "00" + datos_hex
+        renglon = rellena(convert_dtoh(len(datos_hex) / 2), 1) + CL_CODIGOS_HEX
+        CL += len(datos_hex) / 2
+        archivoHEX.write(":" + renglon + checksum(renglon) + "\n")
 
-    archivoHEX.write(':00000001FF')  # Escribe el final del archivo
+    archivoHEX.write(":00000001FF")  # Escribe el final del archivo
     archivoHEX.close()
     return
 
@@ -87,16 +83,21 @@ def verif_num(num, n_bytes, con_signo=False):
     if num.find("-") != -1:
         num = re.sub(r"-", "", num)
         num = int(num, 16)
-        if num > (16**(2*n_bytes)) / 2:
-            raise ValueError(f"Valor fuera del rango permitido (<-{(16**(2*n_bytes)) / 2})")
+        if num > (16 ** (2 * n_bytes)) / 2:
+            raise ValueError(
+                f"Valor fuera del rango permitido (<-{(16**(2*n_bytes)) / 2})"
+            )
     else:
         aux = 1
         num = int(num, 16)
         if con_signo:
             aux *= 2
 
-        if num > (16**(2*n_bytes) / aux) - 1:
-            raise ValueError(f"Valor fuera del rango permitido (>{(16**(2*n_bytes) / aux) - 1})")
+        if num > (16 ** (2 * n_bytes) / aux) - 1:
+            raise ValueError(
+                f"Valor fuera del rango permitido (>{(
+                    16**(2*n_bytes) / aux) - 1})"
+            )
 
 
 # Retorna la clave de la inst. para acceder a su codigo y tamaño en la lut
@@ -170,7 +171,7 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
         # Etiquetas
         elif re.match(r"\S*\W+\S*|\b\d+\S*\b", op) is None:
             if op in TABLA_DE_SIMBOLOS:
-                verif_num(convert_dtoh(TABLA_DE_SIMBOLOS[op])+"H", 2)
+                verif_num(convert_dtoh(TABLA_DE_SIMBOLOS[op]) + "H", 2)
                 valores_op.append(op)
 
             if op in TABLA_DE_SIMBOLOS or primeraPasada:
@@ -217,7 +218,8 @@ def primera_pasada(archivoASM, nombre_lst, nombre_hex):
                 numero_dec = re.search(r"\b\d+(?!H)\b", instruccion)
                 if numero_dec is not None:
                     numero_hex = convert_dtoh(numero_dec.group(0)) + "H"
-                    instruccion = re.sub(r"\b\d+(?!H)\b", numero_hex, instruccion)
+                    instruccion = re.sub(
+                        r"\b\d+(?!H)\b", numero_hex, instruccion)
 
                 try:
                     clave, _ = obtener_clave(instruccion, True)
@@ -226,7 +228,8 @@ def primera_pasada(archivoASM, nombre_lst, nombre_hex):
                     return
 
                 if clave == "ORG NN":
-                    ORG = re.search(r"\b[0-9A-F]{1,4}(?=H)", instruccion).group()
+                    ORG = re.search(
+                        r"\b[0-9A-F]{1,4}(?=H)", instruccion).group()
                     CL = int(ORG, 16)
                     ORG = CL  # Obteniendo el ORG en decimal
 
@@ -271,12 +274,14 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
                 numero_dec = re.search(r"\b\d+(?!H)\b", instruccion)
                 if numero_dec is not None:
                     numero_hex = convert_dtoh(numero_dec.group(0)) + "H"
-                    instruccion = re.sub(r"\b\d+(?!H)\b", numero_hex, instruccion)
+                    instruccion = re.sub(
+                        r"\b\d+(?!H)\b", numero_hex, instruccion)
 
                 clave, valores_op = obtener_clave(instruccion, False)
 
                 if clave == "ORG NN":
-                    ORG = re.search(r"\b[0-9A-F]{1,4}(?=H)", instruccion).group()
+                    ORG = re.search(
+                        r"\b[0-9A-F]{1,4}(?=H)", instruccion).group()
                     CL = int(ORG, 16)
                     ORG = CL  # Obteniendo el ORG en decimal
 
@@ -284,7 +289,9 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
                 numero_neg = re.search(r"-[0-9A-F]{1,4}(?=H)", instruccion)
                 if numero_neg is not None:
                     numero_hex = comp_a16_HexNumNeg(numero_neg.group(0))
-                    instruccion = re.sub(r"-[0-9A-F]{1,4}(?=H)", numero_hex, instruccion)
+                    instruccion = re.sub(
+                        r"-[0-9A-F]{1,4}(?=H)", numero_hex, instruccion
+                    )
 
                 try:
                     codigo_inst = lut[clave][0]
@@ -294,16 +301,10 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
                     return
                 for valor in valores_op:
                     if codigo_inst.find("d") != -1:
-                        if (
-                            re.match(
-                                r"-?[0-9A-F]{1,2}H", valor)
-                            is None
-                        ):
+                        if re.match(r"-?[0-9A-F]{1,2}H", valor) is None:
                             valor = convert_dtoh(
-                                str(
-                                    TABLA_DE_SIMBOLOS[valor] -
-                                    CL - int(tamano_inst)
-                                )
+                                str(TABLA_DE_SIMBOLOS[valor] -
+                                    CL - int(tamano_inst))
                             )
                             if valor.find("-") != -1:
                                 complemento = comp_a16_HexNumNeg(valor)
@@ -336,10 +337,12 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
                         valor = " " + valor
                         codigo_inst = re.sub(r" n ?", valor, codigo_inst)
 
-                codigo_inst = re.sub(r'\s+', '', codigo_inst)  # Se eliminan espacios en blanco
+                codigo_inst = re.sub(
+                    r"\s+", "", codigo_inst
+                )  # Se eliminan espacios en blanco
                 CL_HEX = rellena(convert_dtoh(str(CL)), 2)
 
-                archivoLST.write(CL_HEX+"\t"+f"{codigo_inst:<8}")
+                archivoLST.write(CL_HEX + "\t" + f"{codigo_inst:<8}")
 
                 linea_hex += codigo_inst  # Concatena HEX de las instrucciones
 
@@ -347,7 +350,7 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
         else:
             archivoLST.write("\t\t\t\t")
 
-        archivoLST.write("\t\t"+linea)
+        archivoLST.write("\t\t" + linea)
         linea = archivoASM.readline()
 
     archivoLST.close()
