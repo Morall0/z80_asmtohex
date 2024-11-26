@@ -251,7 +251,8 @@ def primera_pasada(archivoASM, nombre_lst, nombre_hex):
 # Segunda pasada (genera el lst y el hex)
 def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
     linea = archivoASM.readline()
-    archivoLST = open(nombre_lst, "w")
+    if nombre_lst != "":
+        archivoLST = open(nombre_lst, "w")
     CL = 0
     ORG = 0
     linea_hex = ""
@@ -342,18 +343,22 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
                 )  # Se eliminan espacios en blanco
                 CL_HEX = rellena(convert_dtoh(str(CL)), 2)
 
-                archivoLST.write(CL_HEX + "\t" + f"{codigo_inst:<8}")
+                if nombre_lst != "":
+                    archivoLST.write(CL_HEX+"\t"+f"{codigo_inst:<8}")
 
                 linea_hex += codigo_inst  # Concatena HEX de las instrucciones
 
                 CL = CL + int(tamano_inst)
         else:
-            archivoLST.write("\t\t\t\t")
+            if nombre_lst != "":
+                archivoLST.write("\t\t\t\t")
 
-        archivoLST.write("\t\t" + linea)
+        if nombre_lst != "":
+            archivoLST.write("\t\t"+linea)
         linea = archivoASM.readline()
 
-    archivoLST.close()
+    if nombre_lst != "":
+        archivoLST.close()
     genera_hex(linea_hex, nombre_hex, ORG)
 
 
@@ -364,11 +369,15 @@ def traduce():
     # Variable que contiene los argumentos dados en terminal
     args = parser.parse_args()
     if args.HEX is not None:
-        nombre_lst = args.HEX
         nombre_hex = args.HEX
     else:
         nombre_lst = re.sub("asm", "lst", args.nombre_asm)
         nombre_hex = re.sub("asm", "hex", args.nombre_asm)
+
+    if args.LST is not None:
+        nombre_lst = args.LST
+    else:
+        nombre_lst = ""
 
     # Validando la existencia del archivo
     try:
