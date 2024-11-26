@@ -1,3 +1,4 @@
+ORG NN;;0
 NOP;00;1
 LD BC, NN;01 nn;3
 LD (BC), A;02;1

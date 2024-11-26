@@ -6,7 +6,7 @@ from args_config import crear_args_parser
 TABLA_DE_SIMBOLOS = {}
 
 
-#Funcion Checksum en hexa para codigo hex
+# Funcion que realiza el checksum de un renglon hex
 def checksum(linea_hex):
     bytes_hex = [int(linea_hex[i:i+2], 16) for i in range(0, len(linea_hex), 2)]
     suma = sum(bytes_hex)
@@ -30,10 +30,10 @@ def split_hex_16Bytes(linea_hex):
 
 
 # Funcion que genera el archivo.hex con base a la traducción
-def genera_hex(linea_hex, nombre_hex):
+def genera_hex(linea_hex, nombre_hex, ORG):
     archivoHEX = open(nombre_hex, "w")
     lista_hex = split_hex_16Bytes(linea_hex)
-    CL = 0  # TODO: manejar el CL para cuando no inicie en 0
+    CL = ORG
 
     # For que genera el renglon hex de cada 16 bytes de datos
     for datos_hex in lista_hex:
@@ -94,9 +94,13 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
         op = re.sub(r",", "", op)
         div_inst[index] = op
 
+        # DIRECTIVAS
+        if re.match(r"ORG", instruccion):
+            div_inst[index] = "NN"
+
         # Registros
         # (HL) | (IX) | (IY) | (SP)
-        if re.match(r"([A-EHL]|(\((HL|IX|IY|SP)\)))$", op):
+        elif re.match(r"([A-EHL]|(\((HL|IX|IY|SP)\)))$", op):
             extendido = False
 
         # Registros pares
@@ -164,7 +168,8 @@ def obtener_clave(instruccion: str, primeraPasada: bool):
 def primera_pasada(archivoASM, nombre_lst, nombre_hex):
     linea = archivoASM.readline()
 
-    CL = 0  # Manejar el CL para cuando no inicie en 0
+    CL = 0
+    ORG = 0
     while linea:
         if hay_instruccion(linea):  # Verif no linea vacía o coment
             if linea.find(":") != -1:  # Verifica si hay eti
@@ -193,6 +198,11 @@ def primera_pasada(archivoASM, nombre_lst, nombre_hex):
 
                 clave, _ = obtener_clave(instruccion, True)
 
+                if clave == "ORG NN":
+                    ORG = re.search(r"\b[0-9AF]{1,4}(?=H)", instruccion).group()
+                    CL = int(ORG, 16)
+                    ORG = CL  # Obteniendo el ORG en decimal
+
                 try:
                     CL = CL + int(lut[clave][1])
                 except KeyError:
@@ -201,14 +211,14 @@ def primera_pasada(archivoASM, nombre_lst, nombre_hex):
 
         linea = archivoASM.readline()
     archivoASM.seek(0)
-    segunda_pasada(archivoASM, nombre_lst, nombre_hex)
+    segunda_pasada(archivoASM, nombre_lst, nombre_hex, ORG)
 
 
 # Segunda pasada
-def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
+def segunda_pasada(archivoASM, nombre_lst, nombre_hex, ORG):
     linea = archivoASM.readline()
     archivoLST = open(nombre_lst, "w")
-    CL = 0  # TODO: manejar el CL para cuando no inicie en 0
+    CL = ORG
     linea_hex = ""
     while linea:
         if hay_instruccion(linea):  # Verif no linea vacía o coment
@@ -280,6 +290,7 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
                         codigo_inst = re.sub(r" n ?", valor, codigo_inst)
 
                 codigo_inst = re.sub(r'\s+', '', codigo_inst)  # Se eliminan espacios en blanco
+                # print(codigo_inst)
                 CL_HEX = rellena(convert_dtoh(str(CL)), 2)
 
                 archivoLST.write(CL_HEX+"\t"+f"{codigo_inst:<8}")
@@ -294,7 +305,7 @@ def segunda_pasada(archivoASM, nombre_lst, nombre_hex):
         linea = archivoASM.readline()
 
     archivoLST.close()
-    genera_hex(linea_hex, nombre_hex)
+    genera_hex(linea_hex, nombre_hex, ORG)
 
 
 def traduce():
