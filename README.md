@@ -1,2 +1,2 @@
 # z80_asmtohex
-Z80 Translator.
+A translator from assembly instructions of Zilog Z80 microprocessor to Intel Hex (Hexadecimal Object File Format).
